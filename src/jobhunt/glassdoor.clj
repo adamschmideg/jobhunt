@@ -2,7 +2,8 @@
   (:require
             [jobhunt.utils :refer :all]
             [clojure.data.csv :as csv]
-            [com.rpl.specter :refer [select ALL multi-path]]))
+            [com.rpl.specter :refer [select ALL multi-path]]
+            [config.core :refer [env]]))
 
 
 (def default-params {:userip "0.0.0.0"
@@ -11,19 +12,27 @@
                       :v "1"
                       :action "employers"})
 
-(defn company-meta [partnerid key query-map]
-      (let [params (merge default-params
-                          (assoc query-map :t.p partnerid :t.k key))
-            url "http://api.glassdoor.com/api/api.htm?"]
-          (assoc-in (read-json url params) [:response :employers] nil)))
+(def auth (:glassdoor env))
 
-(defn companies [partnerid key query-map]
-  (let [params (merge default-params
+(defn company-meta
+  ([partnerid key query-map]
+   (let [params (merge default-params
+                        (assoc query-map :t.p partnerid :t.k key))
+         url "http://api.glassdoor.com/api/api.htm?"]
+        (assoc-in (read-json url params) [:response :employers] nil)))
+  ([query-map]
+   (company-meta (:partnerid auth) (:key auth) query-map)))
+
+(defn companies
+  ([partnerid key query-map]
+   (let [params (merge default-params
                       (assoc query-map :t.p partnerid :t.k key))
-        url "http://api.glassdoor.com/api/api.htm?"
-        page-count (get-in (company-meta partnerid key params) [:response :totalNumberOfPages])]
+         url "http://api.glassdoor.com/api/api.htm?"
+         page-count (get-in (company-meta partnerid key params) [:response :totalNumberOfPages])]
       (for [p (range page-count)]
          (read-json url (assoc params :pn (inc p))))))
+  ([query-map]
+   (companies (:partnerid auth) (:key auth) query-map)))
 
 (def rating-keys
  (list
